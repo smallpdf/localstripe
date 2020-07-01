@@ -88,7 +88,10 @@ def try_convert_to_int(arg):
         try:
             return int(arg)
         except ValueError:
-            pass
+            try:
+                return int(float(arg))
+            except ValueError:
+                pass
     return arg
 
 
