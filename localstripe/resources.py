@@ -2440,7 +2440,7 @@ class Subscription(StripeObject):
         self.discount = None
         self.ended_at = None
         self.quantity = items[0]['quantity']
-        self.status = 'incomplete'
+        self.status = 'incomplete' if trial_end is not None and trial_period_days is not None else 'trialing'
         self.trial_end = trial_end
         self.trial_start = None
         self.trial_period_days = trial_period_days
