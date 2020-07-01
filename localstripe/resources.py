@@ -558,6 +558,43 @@ class Coupon(StripeObject):
         self.name = name
 
 
+class Discount(StripeObject):
+    object = 'discount'
+    _id_prefix = ''
+
+    def __init__(self, coupon=None, customer=None, end=None, start=None,
+            subscription=None, **kwargs):
+        if kwargs:
+            raise UserError(400, 'Unexpected ' + ', '.join(kwargs.keys()))
+
+        end = try_convert_to_int(end)
+        start = try_convert_to_int(start)
+        try:
+            assert type(coupon) is str
+            assert type(customer) is str and customer.startswith('cus_')
+            if subscription is not None:
+                assert type(subscription) is str and subscription.startswith('sub_'), "sub"
+            if end is not None:
+                assert type(end) is int, "end"
+            if start is not None:
+                assert type(start) is int, "start"
+        except AssertionError as exception:
+            print(exception)
+            raise UserError(400, 'Bad request')
+
+
+        coupon = Coupon._api_retrieve(coupon)  # to return 404 if not existant
+
+        # All exceptions must be raised before this point.
+        super().__init__()
+
+        self.coupon = coupon
+        self.customer = customer
+        self.end = end
+        self.start = start
+        self.subscription = subscription
+
+
 class Customer(StripeObject):
     object = 'customer'
     _id_prefix = 'cus_'
@@ -2307,7 +2344,7 @@ class Subscription(StripeObject):
                  enable_incomplete_payments=True,  # legacy support
                  payment_behavior='allow_incomplete',
                  trial_period_days=None, billing_cycle_anchor=None,
-                 proration_behavior=None, **kwargs):
+                 proration_behavior=None, coupon=None, **kwargs):
         if kwargs:
             raise UserError(400, 'Unexpected ' + ', '.join(kwargs.keys()))
 
@@ -2366,6 +2403,8 @@ class Subscription(StripeObject):
             assert type(enable_incomplete_payments) is bool
             assert payment_behavior in ('allow_incomplete',
                                         'error_if_incomplete')
+            if coupon is not None:
+                assert type(coupon) is str
         except AssertionError:
             raise UserError(400, 'Bad request')
 
@@ -2382,6 +2421,10 @@ class Subscription(StripeObject):
         if default_tax_rates is not None:
             default_tax_rates = [TaxRate._api_retrieve(tr)
                                  for tr in default_tax_rates]
+
+        discount = None
+        if coupon is not None:
+            discount = Discount(coupon, customer, None, None, None)
 
         # All exceptions must be raised before this point.
         super().__init__()
@@ -2407,6 +2450,11 @@ class Subscription(StripeObject):
         self._enable_incomplete_payments = (
             enable_incomplete_payments and
             payment_behavior != 'error_if_incomplete')
+
+        if discount is not None:
+            discount.subscription = self.id
+
+        self.discount = discount or {}
 
         self.items = List('/v1/subscription_items?subscription=' + self.id)
         self.items._list.append(
