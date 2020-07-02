@@ -2445,11 +2445,17 @@ class Subscription(StripeObject):
         self.trial_start = None
         self.trial_period_days = trial_period_days
         self.latest_invoice = None
-        self.start_date = backdate_start_date or int(time.time())
         self.billing_cycle_anchor = billing_cycle_anchor
         self._enable_incomplete_payments = (
             enable_incomplete_payments and
             payment_behavior != 'error_if_incomplete')
+
+        if trial_period_days is not None:
+            self.start_date = int(time.time()) + timedelta(days=trial_period_days)
+        if trial_end is not None:
+            self.start_date = trial_end
+        else:
+            self.start_date = backdate_start_date or int(time.time())
 
         if discount is not None:
             discount.subscription = self.id
@@ -2761,13 +2767,16 @@ class SubscriptionItem(StripeObject):
 
     def _current_period(self):
         if self._subscription:
-            obj = Subscription._api_retrieve(self._subscription).start_date
-            start_date = obj
+            obj = Subscription._api_retrieve(self._subscription)
+            start_date = obj.start_date
+            status = obj.status
         else:
             start_date = int(time.time())
 
         end_date = datetime.fromtimestamp(start_date)
-        if self.plan.interval == 'day':
+        if obj.status == 'trialing':
+            pass
+        elif self.plan.interval == 'day':
             end_date += timedelta(days=1)
         elif self.plan.interval == 'week':
             end_date += timedelta(days=7)
