@@ -715,7 +715,8 @@ class Customer(StripeObject):
     def _api_delete(cls, id):
         obj = super()._api_retrieve(id)
         schedule_webhook(Event('customer.deleted', obj))
-        return super()._api_delete(id)
+        obj.deleted = True
+        return {"deleted": True, "id": id}
 
     @classmethod
     def _api_retrieve_source(cls, id, source_id, **kwargs):
