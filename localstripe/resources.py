@@ -560,7 +560,9 @@ class Coupon(StripeObject):
 
 class Discount(StripeObject):
     object = 'discount'
-    _id_prefix = ''
+    # discounts don't actually have ids in stripe, but this is the easiest way
+    # to make it work
+    _id_prefix = 'dis_'
 
     def __init__(self, coupon=None, customer=None, end=None, start=None,
             subscription=None, **kwargs):
